@@ -23,6 +23,7 @@ JAVA_OPTS+=" -XX:+UseStringDeduplication"      # Especially when used in combina
 JAVA_OPTS+=" -server"                  # Run in server mode. This is the default for 64-bit JVM
 JAVA_OPTS+=" -Djava.awt.headless=true" # don't try to start AWT. Not sure this does anything but better safe than wasting memory
 JAVA_OPTS+=" -Dfile.encoding=UTF-8"    # Use UTF-8
+JAVA_OPTS+=" -Xms640m -Xmx640m"
 
 # Set timezone using the JAVA_TIMEZONE variable if present
 if [ "$JAVA_TIMEZONE"]; then
