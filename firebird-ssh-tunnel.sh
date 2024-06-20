@@ -16,21 +16,33 @@
 ELEPHANT_TEST_REMOTE_USER=${ELEPHANT_TEST_REMOTE_USER}
 ELEPHANT_TEST_REMOTE_HOST=${ELEPHANT_TEST_REMOTE_HOST}
 ELEPHANT_TEST_LOCAL_PORT=${ELEPHANT_TEST_LOCAL_PORT}
-ELEPHANT_TEST_REMOTE_PORT=#{ELEPHANT_TEST_REMOTE_PORT}
+ELEPHANT_TEST_REMOTE_PORT=${ELEPHANT_TEST_REMOTE_PORT}
 ELEPHANT_TEST_REMOTE_PASSWORD=${ELEPHANT_TEST_REMOTE_PASSWORD}
 
 # Function to establish SSH tunnel using sshpass and ssh.
-# This function will create an SSH tunnel that forwards 
-# local port 3050 to the remote port 3050 on the remote host.
 start_tunnel() {
-    sshpass -p ${ELEPHANT_TEST_REMOTE_PASSWORD} ssh -o StrictHostKeyChecking=no -L 127.0.0.1:${ELEPHANT_TEST_LOCAL_PORT}:127.0.0.1:${ELEPHANT_TEST_REMOTE_PORT} ${ELEPHANT_TEST_REMOTE_USER}@${ELEPHANT_TEST_REMOTE_HOST} -N
+    SSH_TUNNEL_PID=$(netstat -tulnp | grep ":${ELEPHANT_TEST_LOCAL_PORT} " | awk '{print $7}' | cut -d'/' -f1)
+    
+    if [ -n "${SSH_TUNNEL_PID}" ]; then
+        echo "Closing existing SSH tunnel with PID: $SSH_TUNNEL_PID"
+        kill $SSH_TUNNEL_PID
+        wait $SSH_TUNNEL_PID 2>/dev/null
+    fi
+
+    sshpass -p ${ELEPHANT_TEST_REMOTE_PASSWORD} ssh -o StrictHostKeyChecking=no -L 127.0.0.1:${ELEPHANT_TEST_LOCAL_PORT}:127.0.0.1:${ELEPHANT_TEST_REMOTE_PORT} ${ELEPHANT_TEST_REMOTE_USER}@${ELEPHANT_TEST_REMOTE_HOST} -N &
+    SSH_TUNNEL_PID=$!
+    echo "SSH tunnel established with PID: $SSH_TUNNEL_PID"
 }
 
-# Infinite loop to keep the SSH tunnel alive.
-# If the tunnel gets disconnected, it will wait for 5 seconds
-# and then attempt to reconnect.
-while true; do
-    start_tunnel
-    echo "SSH connection interrupted. Reconnecting in 5 seconds..."
-    sleep 5
-done
+# Function to check if the tunnel is still active.
+check_tunnel() {
+    if ! netstat -tln | grep -q ":${ELEPHANT_TEST_LOCAL_PORT} "; then
+        echo "SSH tunnel is down. Reconnecting..."
+        start_tunnel
+    else
+        echo "SSH tunnel is still active."
+    fi
+}
+
+# Establish the initial SSH tunnel.
+start_tunnel

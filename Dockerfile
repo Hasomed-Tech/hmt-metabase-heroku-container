@@ -30,4 +30,4 @@ COPY firebird-ssh-tunnel.sh /app/
 RUN ["chmod", "+x", "/app/firebird-ssh-tunnel.sh"]
 
 # Run the SSH tunnel and Metabase
-ENTRYPOINT ["/bin/bash", "-c", "/app/firebird-ssh-tunnel.sh & /app/docker-entrypoint.sh"]
+ENTRYPOINT ["/bin/bash", "-c", "/app/docker-entrypoint.sh"]

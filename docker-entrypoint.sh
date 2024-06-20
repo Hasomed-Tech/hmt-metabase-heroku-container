@@ -34,4 +34,6 @@ fi
 echo "JAVA_OPTS: $JAVA_OPTS"
 export JAVA_OPTS
 
+/app/firebird-ssh-tunnel.sh &
+
 /app/run_metabase.sh
