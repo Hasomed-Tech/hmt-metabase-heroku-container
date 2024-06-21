@@ -46,3 +46,9 @@ check_tunnel() {
 
 # Establish the initial SSH tunnel.
 start_tunnel
+
+# Infinite loop to keep the SSH tunnel alive, run in the background.
+(while true; do
+    check_tunnel
+    sleep 10 # Check the tunnel status every 10 seconds
+done) &
