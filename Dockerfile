@@ -29,5 +29,7 @@ RUN ["chmod", "+x", "/app/docker-entrypoint.sh"]
 COPY firebird-ssh-tunnel.sh /app/
 RUN ["chmod", "+x", "/app/firebird-ssh-tunnel.sh"]
 
+EXPOSE 3000
+
 # Run the SSH tunnel and Metabase
 ENTRYPOINT ["/bin/bash", "-c", "/app/docker-entrypoint.sh"]
