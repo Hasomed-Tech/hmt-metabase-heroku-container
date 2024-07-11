@@ -14,6 +14,8 @@ COPY --from=builder /usr/bin/sshpass /usr/bin/sshpass
 
 COPY docker-entrypoint.sh /app/
 
+RUN apk add --no-cache autossh
+
 # Download the custom Firebird driver for Metabase
 RUN wget -O /app/firebird.metabase-driver.jar https://github.com/evosec/metabase-firebird-driver/releases/download/v1.5.0/firebird.metabase-driver.jar
 
