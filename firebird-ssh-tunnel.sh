@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# This script is necessary because the Metabase driver for Firebird does not support SSH tunneling.
+# Therefore, we need this script to establish and maintain an SSH tunnel manually.
+# The SSH tunnel forwards a local port to a remote port on the Firebird server,
+# enabling secure communication between Metabase and the Firebird database over SSH.
+# The script includes a loop to reconnect automatically if the connection is interrupted.
+
 # Define SSH tunnel parameters.
 # ELEFANT_TEST_REMOTE_USER: The username to use for SSH login.
 # ELEFANT_TEST_REMOTE_HOST: The remote host to connect to via SSH.
@@ -7,18 +13,42 @@
 # ELEFANT_TEST_REMOTE_PORT: The remote port to forward to through the SSH tunnel.
 # ELEFANT_TEST_REMOTE_PASSWORD: The password for the SSH user.
 
-export AUTOSSH_GATETIME=0          # Don't wait at start-up before launching ssh
-export AUTOSSH_POLL=10             # How often to check the connection (seconds)
-export AUTOSSH_PORT=0              # A port to use for monitoring if no one is specified
-
 ELEFANT_TEST_REMOTE_USER=${ELEFANT_TEST_REMOTE_USER}
 ELEFANT_TEST_REMOTE_HOST=${ELEFANT_TEST_REMOTE_HOST}
 ELEFANT_TEST_LOCAL_PORT=${ELEFANT_TEST_LOCAL_PORT}
 ELEFANT_TEST_REMOTE_PORT=${ELEFANT_TEST_REMOTE_PORT}
 ELEFANT_TEST_REMOTE_PASSWORD=${ELEFANT_TEST_REMOTE_PASSWORD}
 
-pkill -f "autossh -M 0"
+# Function to establish SSH tunnel using sshpass and ssh.
+start_tunnel() {
+    SSH_TUNNEL_PID=$(netstat -tulnp | grep ":${ELEFANT_TEST_LOCAL_PORT} " | awk '{print $7}' | cut -d'/' -f1)
 
-# Use sshpass with autossh to handle the password
-sshpass -p ${ELEFANT_TEST_REMOTE_PASSWORD} autossh -f -M 0 -o "ServerAliveInterval=30" -o "ServerAliveCountMax=3" -o "StrictHostKeyChecking=no" -L ${ELEFANT_TEST_LOCAL_PORT}:localhost:${ELEFANT_TEST_REMOTE_PORT} ${ELEFANT_TEST_REMOTE_USER}@${ELEFANT_TEST_REMOTE_HOST} -N
-echo "SSH tunnel established."
+    if [ -n "${SSH_TUNNEL_PID}" ]; then
+        echo "Closing existing SSH tunnel with PID: $SSH_TUNNEL_PID"
+        kill $SSH_TUNNEL_PID
+        wait $SSH_TUNNEL_PID 2>/dev/null
+    fi
+
+    sshpass -p ${ELEFANT_TEST_REMOTE_PASSWORD} ssh -o StrictHostKeyChecking=no -L 127.0.0.1:${ELEFANT_TEST_LOCAL_PORT}:127.0.0.1:${ELEFANT_TEST_REMOTE_PORT} ${ELEFANT_TEST_REMOTE_USER}@${ELEFANT_TEST_REMOTE_HOST} -N &
+    SSH_TUNNEL_PID=$!
+    echo "SSH tunnel established with PID: $SSH_TUNNEL_PID"
+}
+
+# Function to check if the tunnel is still active.
+check_tunnel() {
+    if ! netstat -tln | grep -q ":${ELEFANT_TEST_LOCAL_PORT} "; then
+        echo "SSH tunnel is down. Reconnecting..."
+        start_tunnel
+    else
+        echo "SSH tunnel is still active."
+    fi
+}
+
+# Establish the initial SSH tunnel.
+start_tunnel
+
+# Infinite loop to keep the SSH tunnel alive, run in the background.
+(while true; do
+    check_tunnel
+    sleep 10 # Check the tunnel status every 10 seconds
+done) &
